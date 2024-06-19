@@ -9,14 +9,14 @@
  
  Version:        0.1 vom 08.04.24
  
- Hardware:      MEXLE2020 Ver. 1.0 oder höher
+ Hardware:      MEXLE2020 Ver. 1.0 oder hÃ¶her
 				AVR-USB-PROGI Ver. 2.0
  
  Software:      Entwicklungsumgebung: Microchip-Studio 7.0
 				C-Compiler: AVR/GNU C Compiler 5.4.0
  
- Funktion:		Die Wetterstation ließt Werte aus 3 Sensoren aus und kann dann ihre Daten grafisch darstellen. Sie hat 4 Funktionsoberflächen,
-				die mit den Tastern S1 bis S4 ausgewählt werden können:
+ Funktion:		Die Wetterstation lieÃŸt Werte aus 3 Sensoren aus und kann dann ihre Daten grafisch darstellen. 
+ 			Sie hat 4 FunktionsoberflÃ¤chen, die mit den Tastern S1 bis S4 ausgewÃ¤hlt werden kÃ¶nnen:
 				
 				1:Temperatur
 				2:Windeschwindigkeit
@@ -31,23 +31,23 @@
         
 				Betrieb:
 				+----------------+    +----------------+  +----------------+    +----------------+
-				|aktuelle      ()|    |aktuelle      ()|  |aktuelle	     ()|    |                |
-				|Temp.:      22°C|    |Luftfeucht.: 68%|  |Windges.: 22km/h|    |                |
+				|aktuelle     *()|    |aktuelle      ()|  |aktuelle	 ()|    |                |
+				|Temp.:      22Â°C|    |Luftfeucht.: 68%|  |Windges.: 22km/h|    |                |
 				+----------------+    +----------------+  +----------------+    +----------------+
-				
+				*In den Klammern wird Animation eingefÃ¼gt
  
  
  Tastenfunktion: Im Hauptprogramm main.c rufen S1 .. S4 die 4 Unterprogramme auf.
-				 Die Unterprogramme enthalten die einzelnen Funktionen und ihre Oberflächen (siehe dort)
+		 Die Unterprogramme enthalten die einzelnen Funktionen und ihre OberflÃ¤chen (siehe dort)
  
  
  Fuses im uC:    
  
  Header-Files:  lcd_lib_de.h    (Library zur Ansteuerung LCD-Display Ver. 1.3)
 				avr/io.h		(Library zur I/O-Konfiguration)
-				stdbool.h		(Library für Bit-Variablen)
-				util.delay.h	(Library für Delays)
-				avr/interrupt.h	(Library für Interrupts)	
+				stdbool.h		(Library fÃ¼r Bit-Variablen)
+				util.delay.h	(Library fÃ¼r Delays)
+				avr/interrupt.h	(Library fÃ¼r Interrupts)	
  
  =============================================================================*/
    
@@ -118,26 +118,24 @@ bool sw3_slope = 0;          // Flankenspeicher fuer Taste 3
 bool sw4_slope = 0;          // Flankenspeicher fuer Taste 4
    
    
-// Funktionsprototypen
-void initTimer0(void);        // Timer 0 initialisieren (Soundgenerierung)
-void initDisplay(void);      // Initialisierung des Displays
+//Funktionsprototypen
+void initDisplay(void)			//Initialisierung des Displays
+void StartupScreen(void);		//Startscreen
+void setup(void);			//Setup EingÃ¤nge Sensoren
 
-  
-void readButton(void);        // Tasten einlesen
-void getChoiceInMainMenu(void); // Hauptmenu bearbeiten
-void showMainDisplay(void);  // Anzeige des Hauptmenus
-   
-void doBlinkingLed(void);      // Teilprogramm 1: Blinkende LED
-void showBlinkingLedDisplay(void); // Anzeige zu Teilprogramm 1
-   
-void doSound(void);          // Teilprogramm 2: Soundgenerierung
-void showSoundDisplay(void);    // Anzeige zu Teilprogramm 2
-   
-void doLogicFunctions(void);    // Teilprogramm 3: Logische Funktionen
-void showLogicDisplay(void);    // Anzeige zu Teilprogramm 3
-   
-void doCounterProg(void);      // Teilprogramm 4: Zaehler
-void showCounterDisplay(void);  // Anzeige zu Teilprogramm 4
+void getChoice(void);			//Modusanwahl
+void doTemp(void);			// Teilprogramm 1: Temperaturmessung
+void showTempDisplay(void);		// Anzeige mit Wert und Thermometer
+
+void doWind(void);				// Teilprogramm 2: Windgeschwindigkeitsmessung
+void showWindDisplay(void);     // Anzeige mit Wert und Animation
+
+void doHumid(void);				// Teilprogramm 3: Luftfeuchtigkeitsmessung
+void showHumidDisplay(void);    // Anzeige mit Prozentwert und Animation
+
+void doCalendar(void);			// Teilprogramm 4: Zaehler
+void showCalendarDisplay(void); // Anzeige des Kalenders
+
    
 // Hauptprogramm ==============================================================
    
@@ -217,7 +215,7 @@ void readButton(void)
 {
     //   Bitposition im Register:
     //          __76543210
-    DDRC = DDRC &   0b11110000;     // Zunaechst Port B auf Eingabe schalten
+    DDRC = DDRC &   0b11110000;     // Zunaechst Port C auf Eingabe schalten
     PORTC =         0b00001111;     // Pullup-Rs eingeschaltet
     _delay_us(1);                   // Umschalten der Hardware-Signale abwarten
  
@@ -227,7 +225,7 @@ void readButton(void)
     sw3_neu = (PINC & (1 << PC2));
     sw4_neu = (PINC & (1 << PC3));
    
-    DDRC = DDRC | 0b00001111;      // Am Ende Port B wieder auf Ausgabe schalten
+    DDRC = DDRC | 0b00001111;      // Am Ende Port C wieder auf Ausgabe schalten
  
     // Auswerten der Flanken beim Druecken
    
@@ -257,32 +255,22 @@ void initDisplay()            // Start der Funktion
     lcd_init();              // Initialisierungsroutine aus der lcd_lib
                        
     lcd_gotoxy(0,0);                // Cursor auf 1. Zeile, 1. Zeichen
-    lcd_putstr("- Experiment 5 -"); // Ausgabe Festtext: 16 Zeichen
+    lcd_putstr("---Willkommen---"); // Ausgabe Festtext: 16 Zeichen
    
-    lcd_gotoxy(1,0);                // Cursor auf 2. Zeile, 1. Zeichen
-    lcd_putstr("  Program Menu  "); // Ausgabe Festtext: 16 Zeichen
+    //lcd_gotoxy(1,0);                // Cursor auf 2. Zeile, 1. Zeichen
+    //lcd_putstr(""); // Ausgabe Festtext: 16 Zeichen
    
     _delay_ms(2000);            // Wartezeit nach Initialisierung
    
-    showMainDisplay();
 }
    
    
-// Anzeige Hauptmenu ==========================================================
-void showMainDisplay()
-{
-    lcd_gotoxy(0,0);                // Cursor auf 1. Zeile, 1. Zeichen
-    lcd_putstr("   Main Level   "); // Ausgabe Festtext: 16 Zeichen
-   
-    lcd_gotoxy(1,0);                // Cursor auf 2. Zeile, 1. Zeichen
-    lcd_putstr(" P1  P2  P3  P4 "); // Ausgabe Festtext: 16 Zeichen
-   
-}                              // Ende der Funktion
+
   
    
 
 // Auswahl im Hauptmenu ermitteln =======================================================
-void getChoiceInMainMenu()
+void getChoice()
 {
     if (sw1_slope)            // Wenn Flanke auf Taste 1
     {
@@ -307,6 +295,19 @@ void getChoiceInMainMenu()
         sw4_slope=0;            //  Flankenbit loeschen
         modus=4;                //  neuer Modus 4
 	}
-//Initialisierung der Animationen
 
+//Temperaturfunktion===========================================================================================================
+//Initialisierung der Animation		0		1		2		3		4		5		6		7		
+			Custom_Animation[][]=	{0b00100,0b01010,0b01010,0b01010,0b01010,0b10001,0b10001,0b01110},	//Temperatur -10-0Â°C
+						{0b00100,0b01010,0b01010,0b01010,0b01010,0b10001,0b11111,0b01110},	//Temperatur   0-10Â°C
+						{0b00100,0b01010,0b01010,0b01010,0b01010,0b11111,0b11111,0b01110},	//Temperatur   10-20Â°C
+						{0b00100,0b01010,0b01010,0b01010,0b01110,0b11111,0b11111,0b01110},	//Temperatur   20-30Â°C	
+						{0b00100,0b01010,0b01010,0b01110,0b01110,0b11111,0b11111,0b01110},	//Temperatur   30-40Â°C
+						{0b00100,0b01010,0b01110,0b01110,0b01110,0b11111,0b11111,0b01110};	//Temperatur   40-50Â°C
+				
+// Schreiben der Custom Chars ins CGRAM 
+// Setze den CGRAM-Adresszeiger auf 0
+	for (uint8_t i = 0; i < 8; i++) {
+  	lcd_write(Custom_Animation[i]);
+	}
 }
