@@ -160,22 +160,23 @@ int main()
             break;
    
         case 1:                     // Modus 1: Blinkende LED
-            doBlinkingLed();        // Programm laeuft bis zum Abbruch
+            doTemp();        // Programm laeuft bis zum Abbruch
             modus = 0;              // danach auf Hauptmenu zurueckschalten
             break;
    
         case 2:                     // Modus 2: Soundgenerierung
-            doSound();              // Programm laeuft bis zum Abbruch
+            doWind();              // Programm laeuft bis zum Abbruch
             modus = 0;              // danach auf Hauptmenu zurueckschalten
             break;
    
         case 3:                     // Modus 3: Logische Funktionen
-            doLogicFunctions();     // Programm laeuft bis zum Abbruch
+            doHumid();     // Programm laeuft bis zum Abbruch
             modus = 0;              // danach auf Hauptmenu zurueckschalten
             break;
            
         case 4:                     // Modus 4: Up-Down-Counter
-            doCounterProg();        // Programm laeuft bis zum Abbruch
+            doCalendar
+		    ();        // Programm laeuft bis zum Abbruch
             modus = 0;              // danach auf Hauptmenu zurueckschalten
             break;
         }
