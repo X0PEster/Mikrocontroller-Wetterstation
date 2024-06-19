@@ -43,7 +43,7 @@
  
  Fuses im uC:    
  
- Header-Files:  lcd_lib_de.h    (Library zur Ansteuerung LCD-Display Ver. 1.3)
+ Header-Files:  		lcd_lib_de.h    (Library zur Ansteuerung LCD-Display Ver. 1.3)
 				avr/io.h		(Library zur I/O-Konfiguration)
 				stdbool.h		(Library für Bit-Variablen)
 				util.delay.h	(Library für Delays)
@@ -124,6 +124,7 @@ void StartupScreen(void);		//Startscreen
 void setup(void);			//Setup Eingänge Sensoren
 
 void getChoice(void);			//Modusanwahl
+
 void doTemp(void);			// Teilprogramm 1: Temperaturmessung
 void showTempDisplay(void);		// Anzeige mit Wert und Thermometer
 
@@ -155,7 +156,7 @@ int main()
         {
         case 0:                     // Modus 0: Hauptmenu
             showMainDisplay();
-            getChoiceInMainMenu();
+            getChoice();
             break;
    
         case 1:                     // Modus 1: Blinkende LED
