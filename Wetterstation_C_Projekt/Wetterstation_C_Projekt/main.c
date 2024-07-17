@@ -81,18 +81,13 @@ void menuScreen(void);		 // Anzeige im Standardmenu
 void temperatureMenu(void);	 //Menu fur Temperatur
 void humidityMenu(void);	 //Menu fur Luftfeuchte
 void temperatureScreen(void);	 //Anzeigefunktion fur das Temperatur-Menu
+void tempmax(void);				 //Anzeigefunktion für maximal Temperatur
 void humidityScreen(void);		 //Anzeigefunktion fur das Luftfeuchte-Menu
+void humidmax(void);			 ////Anzeigefunktion für maximale Luftfeuchte
 void windMenu(void);			 //Menu fur Windgeschwindigkeit
 void windScreen(void);			 //Anzeigefunktion fur Wind-V-Menu
 
-
-
-void lcd_command(uint8_t cmd);
-void lcd_data(uint8_t data);
-void lcd_write_custom_char(uint8_t loc, uint8_t* charmap);
-
-int8_t readDHT(uint8_t*, uint8_t*);
-int8_t getData(uint8_t*, uint8_t*);
+int8_t readDHT(void);
 
 //Konstanten
 #define PRESCALER_VAL	90	//Faktor Vorteiler
@@ -112,15 +107,6 @@ int8_t getData(uint8_t*, uint8_t*);
 #define DHT_INPUTPIN 1
 #define DHT_TIMEOUT 200
 
-// Define the LCD control pins
-#define RS PD4
-#define RW PD1
-#define EN PD7
-
-// Define the LCD port
-#define LCD_PORT PORTC
-#define LCD_DDR  DDRC
-
 //Variablen
 unsigned char softwarePrescaler = PRESCALER_VAL;    // Zaehlvariable Vorteiler
 unsigned char cycle10msCount    = CYCLE10MS_MAX;    // Zaehlvariable Hundertstel
@@ -133,13 +119,15 @@ unsigned char month				= 01;				// Var. Monat
 unsigned char year				= 24;				// Var. Jahr
 unsigned char dayCount[]		={32,29,32,31,32,31,32,32,31,32,31,32};		// Anzahl Tage im Monat
 unsigned char menu				= 0;				// Variable für Menu-Auswahl
-bool timeMenu					= 0;				//menu in Zeitbearbeitung (hh:mm / dd.mm)
+int timeMenu					= 0;				//menu in Zeitbearbeitung (hh:mm / dd.mm)
 
 unsigned char windV				= 0;				//Variable Windgeschwindigkeit
 
-uint8_t *temperature;
-uint8_t *humidity;
-	
+unsigned char temperature		= 0;
+unsigned char maxtemp			= 0;
+unsigned char humidity			= 0;
+unsigned char maxhumid			= 0;
+
 bool timertick;                     // Bit-Botschaft alle 0,166ms (bei Timer-Interrupt)
 bool cycle10msActive;               // Bit-Botschaft alle 10ms
 bool cycle100msActive;              // Bit-Botschaft alle 100ms
@@ -159,6 +147,8 @@ bool button3_slope=0;				// Flankenwert fuer Taste 3
 bool button4_slope=0;				// Flankenwert fuer Taste 4
 
 uint8_t buttonState    = 0b00001111;        // Bitspeicher fuer Tasten
+uint8_t tempval;							//Variable fur Temperaturwert
+uint8_t humidval;							//VAraible für Luftfeuchtigkeitswert
 
 // Makros
 #define SET_BIT(BYTE, BIT)  ((BYTE) |=  (1 << (BIT))) // Bit Zustand in Byte setzen
@@ -418,7 +408,11 @@ void setTime(void)
 		ReadTaster();
 		if((button4_new==0)&(button4_old==1))		//Wenn Taster 4 gedruckt Modus wechseln: Stunde:Minute/Tag.Monat
 		{
-			TGL_BIT(timeMenu,0);
+			timeMenu++;
+			if(timeMenu>3)
+			{
+				timeMenu=0;
+			}
 		}
 		switch(timeMenu){
 					case 0:
@@ -439,7 +433,12 @@ void setTime(void)
 						  {	month++;                  //    Monate hochzaehlen, Ueberlauf bei 12
 							  if (month==13)			//Uberlauf bei 12 => ein Jahr dazu
 							  {month = 1;
-							  year++;}
+							  year++;
+								  if(year>99)
+								  {
+									  year=00;
+								  }
+							  }
 						  }
 						  if ((button2_new==0)&(button2_old==1))  // wenn Taste 2 eben gedrueckt wurde:
 						  {
@@ -448,6 +447,40 @@ void setTime(void)
 							  if (day==dayCount[month-1])
 							  day = 1;
 						  }break;
+						  
+					case 2:
+						if ((button2_new==0)&(button2_old==1))  // wenn Taste 2 eben gedrueckt wurde:
+						{
+							if (hours==0)
+							{hours = 24;}
+							hours--;
+						}
+						if ((button3_new==0)&(button3_old==1))  // wenn Taste 3 eben gedrueckt wurde:
+						{
+							if (minutes==00)
+							{minutes = 60;}
+							minutes--;
+						}break;
+						
+					case 3:
+						  if ((button3_new==0)&(button3_old==1))  // wenn Taste 3 eben gedrueckt wurde:
+						  {	month--;                  //    Monate hochzaehlen, Ueberlauf bei 12
+							  if (month<1)			//Uberlauf bei 12 => ein Jahr dazu
+							  {month = 12;
+								
+								if(year==00)  
+								year=100;
+								year--;
+							  }
+						  }
+						  if ((button2_new==0)&(button2_old==1))  // wenn Taste 2 eben gedrueckt wurde:
+						  {
+							  day--;                  //    Tage hochzaehlen, Ueberlauf bei dayCount
+							  if((month==2)&&(year%4==0)){dayCount[1]=30;}else{dayCount[1]=29;}	//bei Tag-Uberlauf, kein Monat hochzahlen
+							  if (day==1)
+							  day = dayCount[month-1]-1;
+						  }break;
+					
 					}
 			button2_slope = 0;
 			button3_slope = 0;
@@ -471,9 +504,12 @@ void setTimeScreen(void)
 	lcd_putc(0x7F);					// ':'
 	
 	lcd_gotoxy(1,5);				// '|'
+	
 	if(timeMenu==0)
-	{lcd_putstr("h+  m+");}else
-	{lcd_putstr("d+  m+");}
+		{lcd_putstr("h+  m+");}
+	else if(timeMenu==1){lcd_putstr("d+  m+");}
+	else if(timeMenu==2){lcd_putstr("h-  m-");}
+	else if(timeMenu==3){lcd_putstr("d-  m-");}
 		
 	lcd_gotoxy(1,15);
 	lcd_putc(0x7E);					//Pfeil nach links "zurück"
@@ -541,7 +577,7 @@ void temperatureMenu()
 
 		ReadTaster();
 
-		getData(temperature,humidity);		//Temp. Daten aus Funktion bekommen
+		readDHT();		//Temp. Daten aus Funktion bekommen
 		
 		ReadTaster();	
 		
@@ -575,16 +611,17 @@ void humidityMenu()
 		{
 			cycle1sActive = 0;         //      Botschaft "1s" loeschen
 			refreshTime();			   //      Uhr weiterzaehlen
-			humidityScreen();			//Luftfeuchte-Anzeige jede Sekunde aktualisieren
+			humidityScreen();		   //Luftfeuchte-Anzeige jede Sekunde aktualisieren
 		}
 		button1_slope = 0;
 		button1_old=button1_new;
 		
 		ReadTaster();
 
-		getData(temperature,humidity);		//Luftfeuchte-Daten von Funktion bekommen
+		readDHT();		//Luftfeuchte-Daten von Funktion bekommen
 		
 		ReadTaster();
+	}
 		
 		button2_slope = 0;
 		button3_slope = 0;
@@ -593,14 +630,15 @@ void humidityMenu()
 		button2_old = button2_new;              // aktuelle Tastenwerte speichern
 		button3_old = button3_new;              //    in Variable fuer alte Werte
 		button4_old=button4_new;	
-	}
+
 	button1_slope = 0;
 	button1_old=button1_new;
 	lcd_clearDisplay();
 }
 
-int8_t readDHT(uint8_t *temperature, uint8_t *humidity)		//Sensordaten-Auslese-Funktion
+int8_t readDHT(void)		//Sensordaten-Auslese-Funktion
 {
+	
 	uint8_t i,j=0;
 	int8_t bits[5]={};
 	
@@ -609,7 +647,17 @@ int8_t readDHT(uint8_t *temperature, uint8_t *humidity)		//Sensordaten-Auslese-F
 	//MC Ports/Pins vorbereiten
 	DHT_DDR |= (1<<DHT_INPUTPIN);	//output
 	DHT_PORT |= (1<<DHT_INPUTPIN);	//high
-	_delay_ms(100);
+	
+	while(!cycle100msActive)
+	{
+		if(cycle1sActive)
+		{
+			refreshTime();
+			cycle1sActive=0;
+		}
+		cycle100msActive=0;
+		break;
+	}
 		
 	//MC kontakt mit DHT
 	DHT_PORT &= ~(1<<DHT_INPUTPIN);	//low
@@ -633,10 +681,16 @@ int8_t readDHT(uint8_t *temperature, uint8_t *humidity)		//Sensordaten-Auslese-F
 	//Daten/Bits einlesen
 	
 	uint16_t timeoutcounter = 0;
-	
+	uint8_t is_first_value = 1;
+	uint8_t is_third_value = 0;
 	for(j=0;j<5;j++)	//Schleife um 5 einzelne Bytes aufzunehmen
 	{
+		ReadTaster();
 		uint8_t result = 0;
+		if(j==2)
+		{
+			is_third_value=1;
+		}
 		for(i=0;i<8;i++)	//Schleife für einzelne Bits pro Byte
 		{
 			timeoutcounter=0;
@@ -658,30 +712,45 @@ int8_t readDHT(uint8_t *temperature, uint8_t *humidity)		//Sensordaten-Auslese-F
 			if(timeoutcounter > DHT_TIMEOUT) {return -1;}
 			}
 		}
+		if (is_first_value)
+		{
+			is_first_value=0;
+			humidval = result;
+		}
+		if(is_third_value)
+		{
+			is_third_value=0;
+			tempval = result;
+		}
 		bits[j]=result;
 	}
 	//Port zurücksetzen setzen
 	DHT_DDR |= (1<<DHT_INPUTPIN);	//output
 	DHT_PORT |= (1<<DHT_INPUTPIN);	//low
-	_delay_ms(100);
+	
+	while(!cycle100msActive)
+	{
+		if(cycle1sActive)
+		{
+		refreshTime();
+		cycle1sActive=0;
+		}
+		cycle100msActive=0;
+		break;
+	}
+	
 	//cheksum
 	if ((bits[0] + bits[1] + bits[2] + bits[3]) == bits[4]) {
 		//return temperature and humidity
-		*temperature=bits[2];
-		*humidity = bits[0];
 		return 0;		
 	}
 	return -1;
 }
 
-int8_t getData(uint8_t *temperature, uint8_t *humidity)
-{
-	return readDHT(temperature,humidity);	//Daten des Sensors übermitteln
-}
-
-
 void temperatureScreen()
 {
+	temperature= tempval; 
+
 	lcd_gotoxy(0,0);
 	lcd_putstr("Temperatur:");
 
@@ -690,11 +759,24 @@ void temperatureScreen()
 		
 	lcd_gotoxy(1,4);
 	
-	lcd_putc(*temperature);			//Temperatur-Char ausgeben
+	lcd_putc(ASC_NULL + temperature/10);			//Temperatur-Char ausgeben
+	lcd_putc(ASC_NULL + temperature%10);
+	lcd_putc(0b11011111);
+	lcd_putstr("C");
 }
 
 void humidityScreen()
 {
+	humidity= humidval;
+	if (cycle100msActive)
+	{
+		cycle100msActive=0;
+		if(maxhumid<humidval)
+		{
+			maxhumid=humidval;
+		}
+	}
+	
 	lcd_gotoxy(0,0);
 	lcd_putstr("Luftfeuchte:");
 
@@ -703,7 +785,41 @@ void humidityScreen()
 	
 	lcd_gotoxy(1,4);
 	
-	lcd_putc(*humidity);		//Luftfeuchte-Char ausgeben
+	lcd_putc(ASC_NULL + humidity/10);		//Luftfeuchte-Char ausgeben
+	lcd_putc(ASC_NULL +	humidity%10);
+	lcd_putstr("%");
+	
+while (button4_slope==1)
+{
+	lcd_gotoxy(0,0);
+	lcd_putstr("max.Luftfeuchte:");
+
+	lcd_gotoxy(1,0);
+	lcd_putc(0x7F);
+	
+	lcd_gotoxy(1,4);
+	
+	lcd_putc(ASC_NULL + maxhumid/10);		//Luftfeuchte-Char ausgeben
+	lcd_putc(ASC_NULL +	maxhumid%10);
+	lcd_putstr("%");
+	if (cycle100msActive)
+	{
+		cycle100msActive=0;
+		if(maxhumid<humidval)
+		{
+			maxhumid=humidval;
+		}
+	}
+	ReadTaster();
+	if(button1_slope==1)
+	{
+		button4_slope=0;
+		lcd_clearDisplay();
+	}
+	
+	button1_slope=0;
+	
+}
 }
 
 void windMenu()
@@ -761,26 +877,10 @@ void windMenu()
 	lcd_clearDisplay();
 }
 
-    uint8_t smiley[8] = {
-	    0b00000,
-	    0b01010,
-	    0b01010,
-	    0b00000,
-	    0b10001,
-	    0b01110,
-	    0b00000,
-	    0b00000
-    };
-	
-
 void windScreen()
 {
 	lcd_gotoxy(0,0);
 	lcd_putstr("Wind-V:");
-		
-	lcd_write_custom_char(0,smiley);
-	lcd_gotoxy(0,10);
-	lcd_data(0);
 
 	lcd_gotoxy(1,0);
 	lcd_putc(0x7F);
@@ -793,61 +893,3 @@ void windScreen()
 	lcd_putstr(" in Hz");
 }
 
-
-void lcd_init_zwei() {
-	LCD_DDR = 0xFF; // Set LCD port as output
-	_delay_ms(20);  // Wait for LCD to power up
-
-	// Initialize LCD in 4-bit mode
-	lcd_command(0x02);
-	lcd_command(0x28);
-	lcd_command(0x0C);
-	lcd_command(0x06);
-	lcd_command(0x01);
-	_delay_ms(2);
-}
-
-
-void lcd_command(uint8_t cmd) {
-	LCD_PORT = (cmd & 0xF0); // Send higher nibble
-	LCD_PORT &= ~(1 << RS);  // RS = 0 for command
-	LCD_PORT &= ~(1 << RW);  // RW = 0 for write
-	LCD_PORT |= (1 << EN);   // EN = 1 for high pulse
-	_delay_us(1);
-	LCD_PORT &= ~(1 << EN);  // EN = 0 for low pulse
-	_delay_us(200);
-
-	LCD_PORT = (cmd << 4);   // Send lower nibble
-	LCD_PORT &= ~(1 << RS);  // RS = 0 for command
-	LCD_PORT &= ~(1 << RW);  // RW = 0 for write
-	LCD_PORT |= (1 << EN);   // EN = 1 for high pulse
-	_delay_us(1);
-	LCD_PORT &= ~(1 << EN);  // EN = 0 for low pulse
-	_delay_ms(2);
-}
-
-void lcd_data(uint8_t data) {
-	LCD_PORT = (data & 0xF0); // Send higher nibble
-	LCD_PORT |= (1 << RS);    // RS = 1 for data
-	LCD_PORT &= ~(1 << RW);   // RW = 0 for write
-	LCD_PORT |= (1 << EN);    // EN = 1 for high pulse
-	_delay_us(1);
-	LCD_PORT &= ~(1 << EN);   // EN = 0 for low pulse
-	_delay_us(200);
-
-	LCD_PORT = (data << 4);   // Send lower nibble
-	LCD_PORT |= (1 << RS);    // RS = 1 for data
-	LCD_PORT &= ~(1 << RW);   // RW = 0 for write
-	LCD_PORT |= (1 << EN);    // EN = 1 for high pulse
-	_delay_us(1);
-	LCD_PORT &= ~(1 << EN);   // EN = 0 for low pulse
-	_delay_ms(2);
-}
-
-void lcd_write_custom_char(uint8_t loc, uint8_t* charmap) {
-	loc &= 0x07; // We only have 8 locations 0-7 for custom characters
-	lcd_command(0x40 + (loc * 8)); // Set CGRAM address
-	for (int i = 0; i < 8; i++) {
-		lcd_data(charmap[i]);
-	}
-}
