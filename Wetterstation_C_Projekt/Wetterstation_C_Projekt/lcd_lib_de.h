@@ -49,12 +49,12 @@ Version: 	1.4	vom 07.10.2020
 // Konstanten
 
 #define CMD_CLR_DIS		0x01	// Instruction Code fuer LCD: Loeschen des Displays
-#define CMD_MOD_4BIT1	0x03	// Instruction Code fuer LCD: erster  Initialisierungswert für 4-Bit Ansteuerung 
-#define CMD_MOD_4BIT2	0x02	// Instruction Code fuer LCD: zweiter Initialisierungswert für 4-Bit Ansteuerung
+#define CMD_MOD_4BIT1	0x03	// Instruction Code fuer LCD: erster  Initialisierungswert fÃ¼r 4-Bit Ansteuerung 
+#define CMD_MOD_4BIT2	0x02	// Instruction Code fuer LCD: zweiter Initialisierungswert fÃ¼r 4-Bit Ansteuerung
 #define CMD_ENB_DIS		0x0C	// Instruction Code fuer LCD: Aktivieren des Displays
 #define CMD_INC_CSR		0x06	// Instruction Code fuer LCD: Cursor auf "increment mode" 
 #define CMD_FCT_DIS		0x28	// Instruction Code fuer LCD: Function Set: Display Mode 2 Zeilen, 5x8 Pixel
-#define CMD_NXT_LIN		0x40	// Instruction Code fuer LCD: Bit6 für Ausgabe in naechster Zeile
+#define CMD_NXT_LIN		0x40	// Instruction Code fuer LCD: Bit6 fÃ¼r Ausgabe in naechster Zeile
 #define CMD_GOTO_XY		0x80	// Instruction Code fuer LCD: Goto XY
 
 #define DLY_INIT_LONG	 10		// 10ms - lange Zeitdauer bei Init
@@ -231,5 +231,25 @@ void lcd_displayMessage(char* string, unsigned char line, unsigned char pos)
 {
 	lcd_gotoxy(line,pos);				// Cursor positionieren
 	lcd_putstr(string  );				// String ausgeben
+}
+// Funktion zum Senden eines Befehls an das LCD
+void lcd_cmd(uint8_t command) {
+	// Setze RS auf 0 (wir senden einen Befehl)
+	PORTD &= ~(1 << PIN_RS);
+
+	// Setze die Daten auf den Befehlswert
+	PORTD = (PORTD & 0xF0) | (command >> 4); // Obere 4 Bits
+	PORTD |= (1 << PIN_EN); // Enable-Pin aktivieren
+	_delay_us(1);
+	PORTD &= ~(1 << PIN_EN); // Enable-Pin deaktivieren
+
+	// Untere 4 Bits
+	PORTD = (PORTD & 0xF0) | (command & 0x0F);
+	PORTD |= (1 << PIN_EN); // Enable-Pin aktivieren
+	_delay_us(1);
+	PORTD &= ~(1 << PIN_EN); // Enable-Pin deaktivieren
+
+	// Warte auf das LCD, um den Befehl zu verarbeiten
+	_delay_ms(2);
 }
 
