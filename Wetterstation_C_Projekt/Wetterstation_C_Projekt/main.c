@@ -51,61 +51,81 @@
  
  =============================================================================*/
 
-//Deklarationen
+//Deklarationen========================================================================================
 
 // Festlegung der Quarzfrequenz
-#ifndef F_CPU                  // optional definieren
-#define F_CPU 18432000UL		// MiniMEXLE mit 18.432 MHz Quarz, statt 12288000UL
+#ifndef F_CPU								// optional definieren
+#define F_CPU				18432000UL		// MiniMEXLE mit 18.432 MHz Quarz, statt 12288000UL
 #endif
 
 
 // Header-Dateien
-#include <avr/io.h>          // I/O-Konfiguration (intern weitere Dateien)
-#include <stdbool.h>         // Bibliothek fuer Bit-Variable
-#include <avr/interrupt.h>   // Definition von Interrupts
-#include <util/delay.h>      // Definition von Delays (Wartezeiten)
+#include <avr/io.h>							// I/O-Konfiguration (intern weitere Dateien)
+#include <stdbool.h>						// Bibliothek fuer Bit-Variable
+#include <avr/interrupt.h>					// Definition von Interrupts
+#include <util/delay.h>						// Definition von Delays (Wartezeiten)
 #include <string.h>
 #include <math.h>
-#include "lcd_lib_de.h"      // Header-Datei fuer LCD-Anzeige
+#include "lcd_lib_de.h"						// Header-Datei fuer LCD-Anzeige
 
 //Funktionsprototypen
-void initDisplay(void);		 //Initialisierung des Displays
-void initTaster(void);		 //Initialisierung der Taster
-void ReadTaster(void);		 //Auslesen der Taster
-void MenuWahl(void);		 //Menu Aubuttonahl
-void refreshTime(void);		 //Uhrfunktion
-void showTime(void);		 //Uhrzeit-Anzeige-Funktion
-void setTime(void);			 //Uhrzeit/Datum bearbeiten
-void setTimeScreen(void);	 //Anzeige fuer Zeiteinstellung
-void menuScreen(void);		 // Anzeige im Standardmenu
-void temperatureMenu(void);	 //Menu fur Temperatur
-void humidityMenu(void);	 //Menu fur Luftfeuchte
-void temperatureScreen(void);	 //Anzeigefunktion fur das Temperatur-Menu
-void tempmax(void);				 //Anzeigefunktion für maximal Temperatur
-void humidityScreen(void);		 //Anzeigefunktion fur das Luftfeuchte-Menu
-void humidmax(void);			 ////Anzeigefunktion für maximale Luftfeuchte
-void windMenu(void);			 //Menu fur Windgeschwindigkeit
-void windScreen(void);			 //Anzeigefunktion fur Wind-V-Menu
+void initDisplay(void);						//Initialisierung des Displays
+void initTaster(void);						//Initialisierung der Taster
+void ReadTaster(void);						//Auslesen der Taster
+void MenuWahl(void);						//Menu Aubuttonahl
+void refreshTime(void);						//Uhrfunktion
+void showTime(void);						//Uhrzeit-Anzeige-Funktion
+void setTime(void);							//Uhrzeit/Datum bearbeiten
+void setTimeScreen(void);					//Anzeige fuer Zeiteinstellung
+void menuScreen(void);						// Anzeige im Standardmenu
+void temperatureMenu(void);					//Menu fur Temperatur
+void humidityMenu(void);					//Menu fur Luftfeuchte
+void temperatureScreen(void);				//Anzeigefunktion fur das Temperatur-Menu
+void tempmax(void);							//Anzeigefunktion für maximal Temperatur
+void humidityScreen(void);					//Anzeigefunktion fur das Luftfeuchte-Menu
+void humidmax(void);						//Anzeigefunktion für maximale Luftfeuchte
+void windMenu(void);						//Menu fur Windgeschwindigkeit
+void windScreen(void);						//Anzeigefunktion fur Wind-V-Menu
+void windmax(void);							//Anzeigefunktion für maximale Windgeschwindigkeit
 
 int8_t readDHT(void);
 
 //Konstanten
-#define PRESCALER_VAL	90	//Faktor Vorteiler
-#define CYCLE10MS_MAX	10	//Faktor Hundertstel
-#define CYCLE100MS_MAX	10	//Faktor Zehntel
+#define PRESCALER_VAL				90		//Faktor Vorteiler
+#define CYCLE10MS_MAX				10		//Faktor Hundertstel
+#define CYCLE100MS_MAX				10		//Faktor Zehntel
 
-#define ASC_NULL            0x30        // Das Zeichen '0' in ASCII
-#define ASC_COLON           0x3A        // Das Zeichen ':' in ASCII
-#define ASC_DOT				0x2E		//' . '
-#define ASC_LINE			0x7C		//' | '
+#define ASC_NULL					0x30    // Das Zeichen '0' in ASCII
+#define ASC_COLON					0x3A    // Das Zeichen ':' in ASCII
+#define ASC_DOT						0x2E	//' . '
+#define ASC_LINE					0x7C	//' | '
 
-#define INPUT_PIN_MASK      0b00001111
+#define INPUT_PIN_MASK				0b00001111	//Inputmaske der benutzten Pins
 
+#define DLY_CMD_LONG				55								// 55us - lange Zeitdauer nach Steuerbefehl
+#define NUMBER_PIXEL_ROWS			8								// Anzahl der Pixelzeilen eines Zeichens auf dem LCD-Display
+#define NUMBER_CUST_CHAR			4								// Anzahl der CustomCharacters auf dem Display
+#define LCD_SET_DDADR				0x80							// Setzt die Adresse des DD RAM
+#define LCD_SET_CGADR				0x40							// Setzt die Adresse des CGRAM
+#define ADR_CHR_1					0b00000000                        // Adresse Custom Character 1 im CGRAM des Displays
+#define ADR_CHR_2					0b00000001                        // Adresse Custom Character 2 im CGRAM des Displays
+#define ADR_CHR_3					0b00000010                        // Adresse Custom Character 3 im CGRAM des Displays
+#define ADR_CHR_4					0b00000011                        // Adresse Custom Character 4 im CGRAM des Displays
+
+// Makros
+#define SET_BIT(BYTE, BIT)  ((BYTE) |=  (1 << (BIT))) // Bit Zustand in Byte setzen
+#define CLR_BIT(BYTE, BIT)  ((BYTE) &= ~(1 << (BIT))) // Bit Zustand in Byte loeschen
+#define TGL_BIT(BYTE, BIT)  ((BYTE) ^=  (1 << (BIT))) // Bit Zustand in Byte wechseln (toggle)
+
+//Defines für Temperatur und Luftfeuchte
 #define DHT_DDR DDRB
 #define DHT_PORT PORTB
 #define DHT_PIN PINB
-#define DHT_INPUTPIN 1
-#define DHT_TIMEOUT 200
+#define DHT_INPUTPIN				1
+#define DHT_TIMEOUT					200
+
+
+
 
 //Variablen
 unsigned char softwarePrescaler = PRESCALER_VAL;    // Zaehlvariable Vorteiler
@@ -119,14 +139,16 @@ unsigned char month				= 01;				// Var. Monat
 unsigned char year				= 24;				// Var. Jahr
 unsigned char dayCount[]		={32,29,32,31,32,31,32,32,31,32,31,32};		// Anzahl Tage im Monat
 unsigned char menu				= 0;				// Variable für Menu-Auswahl
-int timeMenu					= 0;				//menu in Zeitbearbeitung (hh:mm / dd.mm)
+
 
 unsigned char windV				= 0;				//Variable Windgeschwindigkeit
-
+unsigned char maxwind			= 0;
 unsigned char temperature		= 0;
 unsigned char maxtemp			= 0;
 unsigned char humidity			= 0;
 unsigned char maxhumid			= 0;
+unsigned char customchar		= 0;
+int timeMenu					= 0;				//menu in Zeitbearbeitung (hh:mm / dd.mm)
 
 bool timertick;                     // Bit-Botschaft alle 0,166ms (bei Timer-Interrupt)
 bool cycle10msActive;               // Bit-Botschaft alle 10ms
@@ -150,59 +172,11 @@ uint8_t buttonState    = 0b00001111;        // Bitspeicher fuer Tasten
 uint8_t tempval;							//Variable fur Temperaturwert
 uint8_t humidval;							//VAraible für Luftfeuchtigkeitswert
 
-// Makros
-#define SET_BIT(BYTE, BIT)  ((BYTE) |=  (1 << (BIT))) // Bit Zustand in Byte setzen
-#define CLR_BIT(BYTE, BIT)  ((BYTE) &= ~(1 << (BIT))) // Bit Zustand in Byte loeschen
-#define TGL_BIT(BYTE, BIT)  ((BYTE) ^=  (1 << (BIT))) // Bit Zustand in Byte wechseln (toggle)
 
-int main(void)
-{
-	// Initialisierung
-	initDisplay();              // Initialisierung LCD-Anzeige
-	    
-	TCCR0A = 0;                 // Timer 0 auf "Normal menu" schalten
-	SET_BIT(TCCR0B, CS01);      // mit Prescaler /8 betreiben
-	SET_BIT(TIMSK0, TOIE0);     // Overflow-Interrupt aktivieren*/
-	    
-	sei();                      // generell Interrupts einschalten
-		
-    while(1)
-	{
-	   if (cycle1sActive)             // alle Sekunden:
-	   {
-		   cycle1sActive = 0;         //      Botschaft "1s" loeschen
-		   refreshTime();			  //      Uhr weiterzaehlen
-	   }		
-	  if (cycle10msActive)           // alle 100ms:
-		{
-			cycle10msActive = 0;     //      Botschaft "100ms" loeschen
-			MenuWahl();
-		}
-		switch (menu)
-			{
-				case 0: menuScreen();break;
-				
-				case 1: setTime();menu=0;break;						 //Zeit bearbeiten + Zur Menu Auswahl
-				
-				case 2: temperatureMenu();menu=0;break;
-				
-				case 3: humidityMenu();menu=0;break;
-				
-				case 4: windMenu();menu=0;break;
-			}
-		}
-return 0;
-}
+//=================================================================================================================
 
-
-
-
+//Interrupt/Timerfunktion==========================================================================================
 ISR (TIMER0_OVF_vect)
-/*  In der Interrupt-Routine sind die Softwareteiler realisiert, die die Takt-
-    botschaften (10ms, 100ms, 1s) fuer die gesamte Uhr erzeugen. Die Interrupts
-    werden von Timer 0 ausgeloest (Interrupt Nr. 1)
-  
-*/
 {
     timertick = 1;                  // Botschaft 0,166ms senden
     --softwarePrescaler;                    // Vorteiler dekrementieren
@@ -226,7 +200,55 @@ ISR (TIMER0_OVF_vect)
         }
     }
 }
+//=================================================================================================================
 
+//main-Funktion============================================================================================================
+int main(void)
+{
+	// Initialisierung
+	initDisplay();              // Initialisierung LCD-Anzeige
+	    
+	TCCR0A = 0;                 // Timer 0 auf "Normal menu" schalten
+	SET_BIT(TCCR0B, CS01);      // mit Prescaler /8 betreiben
+	SET_BIT(TIMSK0, TOIE0);     // Overflow-Interrupt aktivieren*/
+	    
+	sei();                      // generell Interrupts einschalten
+	
+	 for(unsigned int CntrCustChar=0; CntrCustChar<NUMBER_CUST_CHAR; CntrCustChar++) // Initialisiert die Grafiken der CustomCharacter fürs Menü in den CGRAM des LCD-Displays
+	 {
+		 lcd_generateChar(CntrCustChar, customchar[CntrCustChar]);
+	 }
+	 
+		
+    while(1)
+	{
+	   if (cycle1sActive)             // alle Sekunden:
+	   {
+		   cycle1sActive = 0;         //      Botschaft "1s" loeschen
+		   refreshTime();			  //      Uhr weiterzaehlen
+	   }		
+	  if (cycle10msActive)           // alle 100ms:
+		{
+			cycle10msActive = 0;     //      Botschaft "100ms" loeschen
+			MenuWahl();
+		}
+		switch (menu)										//Switch-Case-Menü
+			{
+				case 0: menuScreen();break;
+				
+				case 1: setTime();menu=0;break;						 
+				
+				case 2: temperatureMenu();menu=0;break;
+				
+				case 3: humidityMenu();menu=0;break;
+				
+				case 4: windMenu();menu=0;break;
+			}
+		}
+return 0;
+}
+
+//Anwahl der Menü-Zustände=====================================================================================
 void MenuWahl(void)
 {
 	ReadTaster();
@@ -258,9 +280,10 @@ void MenuWahl(void)
 			button3_old = button3_new;              //    in Variable fuer alte Werte
 			button4_old = button4_new;
 }
+//=================================================================================================================
 
 
-//Initialisierung - Display
+//Initialisierungfunktion - Display================================================================================
 void initDisplay(void)	//Start der Funktion
 {
 	lcd_init();			//Display-Initialisierung
@@ -279,6 +302,7 @@ void initDisplay(void)	//Start der Funktion
 	lcd_gotoxy(1,0);                // Cursor auf 2. Zeile, 1. Zeichen
 	lcd_putstr("                "); // Ausgabe Festtext: 16 Zeichen	
 }
+//=================================================================================================================
 
 //Tastereinlesefunktion =======================================================
 void ReadTaster(void)
@@ -309,7 +333,7 @@ void ReadTaster(void)
 	 if ((button4_new==0)&(button4_old==1))  // wenn Taste 4 eben gedrueckt wurde:
 	 button4_slope = 1;              //  Flankenbit Taste 4 setzen
 }
-
+//=================================================================================================================
 
 // Anzeigefunktion Uhr ========================================================
 void showTime(void)
@@ -344,30 +368,33 @@ void showTime(void)
 	lcd_putc(ASC_NULL + year/10);		//Jahr als ASCII asugeben
 	lcd_putc(ASC_NULL + year%10);
 }
+//=================================================================================================================
 
-// Anzeigenfunktion im Standardmenu ===========================================
+// Anzeigenfunktion im Standardmenu ===============================================================================
 
 void menuScreen(void)
 {	
 	showTime();							//Uhrzeit-Datum Anzeige
-		
-	lcd_gotoxy(1,5);
-	lcd_putstr("     ");
 	
 	lcd_gotoxy(1,0);					//setTime-Menu Zeichen
-	lcd_putc(0xC0);
+	lcd_putc(0x55);
+	lcd_gotoxy(1,1);
+	lcd_putc(0x4D);
 	
-	lcd_gotoxy(1,4);					//Temperatur-Menu Zeichen
-	lcd_putc(0xD0);
+	lcd_gotoxy(1,6);					//Temperatur-Menu Zeichen
+	lcd_putc(0x54);
 	
 	lcd_gotoxy(1,10);					//Luftfeuchte-Menu Zeichen
-	lcd_putc(0XB1);
+	lcd_putc(0X48);
 	
+	lcd_gotoxy(1,14);					//WindV-Zeichen
+	lcd_putc(0x56);
 	lcd_gotoxy(1,15);					//WindV-Zeichen
-	lcd_putc(0xC1);
+	lcd_putc(0x57);
 }
+//=================================================================================================================
 
-// Stellfunktion ==============================================================
+// Stellfunktion ==================================================================================================
 void setTime(void)
 /*  Die Stellfunktion der Uhr wird alle 10ms aufgerufen. Dadurch wir eine
     Entprellung der Tastensignale realisiert. Das Stellen wir bei einer 
@@ -493,9 +520,9 @@ void setTime(void)
 button1_slope = 0;
 button1_old=button1_new;
 }
+//=================================================================================================================
 
-
-// Anzeigefunktion im Zeitbearbeitungsmodus ===================================
+// Anzeigefunktion im Zeitbearbeitungsmodus =======================================================================
 void setTimeScreen(void)
 {
 	showTime();						//Uhrzeit/Datum anzeige
@@ -514,8 +541,9 @@ void setTimeScreen(void)
 	lcd_gotoxy(1,15);
 	lcd_putc(0x7E);					//Pfeil nach links "zurück"
 }
+//=================================================================================================================
 
-// Zaehlfunktion Uhr ==========================================================
+// Zaehlfunktion Uhr ==============================================================================================
 void refreshTime (void)              // wird jede Sekunde gestartet
 /*  Die Uhr wird im Sekundentakt gezaehlt. Bei jedem Aufruf wird auch ein 
     "Tick" auf dem Lautsprecher ausgegeben. Ueberlaeufe der Sekunden zaehlen
@@ -555,87 +583,9 @@ void refreshTime (void)              // wird jede Sekunde gestartet
 		}
 	}
 }	
+//=================================================================================================================
 
-void temperatureMenu()
-{	button1_slope = 0;
-	button1_old=button1_new;
-	
-	lcd_gotoxy(0,0);
-	
-	lcd_clearDisplay();
-	
-	temperatureScreen();			//Temperatur-Anzeige
-	
-	while(!button1_slope)
-	{	
-		if (cycle1sActive)             // alle Sekunde:
-		{
-			cycle1sActive = 0;         //      Botschaft "1s" loeschen
-			refreshTime();			   //      Uhr weiterzaehlen
-			temperatureScreen();	   //	   Temperatur-Anzeige jede Sekunde aktualisieren
-		}
-
-		ReadTaster();
-
-		readDHT();		//Temp. Daten aus Funktion bekommen
-		
-		ReadTaster();	
-		
-		button2_slope = 0;
-		button3_slope = 0;
-		button4_slope = 0;
-		
-		button2_old = button2_new;              // aktuelle Tastenwerte speichern
-		button3_old = button3_new;              //    in Variable fuer alte Werte
-		button4_old=button4_new;			
-	}
-	button1_slope = 0;
-	button1_old=button1_new;
-	
-	lcd_clearDisplay();
-}
-
-void humidityMenu()
-{	button1_slope = 0;
-	button1_old=button1_new;
-	
-	lcd_gotoxy(0,0);
-	
-	lcd_clearDisplay();
-	
-	humidityScreen();		//Luftfeuchte-Anzeige
-	
-	while(!button1_slope)
-	{
-		if (cycle1sActive)             // alle Sekunde:
-		{
-			cycle1sActive = 0;         //      Botschaft "1s" loeschen
-			refreshTime();			   //      Uhr weiterzaehlen
-			humidityScreen();		   //Luftfeuchte-Anzeige jede Sekunde aktualisieren
-		}
-		button1_slope = 0;
-		button1_old=button1_new;
-		
-		ReadTaster();
-
-		readDHT();		//Luftfeuchte-Daten von Funktion bekommen
-		
-		ReadTaster();
-	}
-		
-		button2_slope = 0;
-		button3_slope = 0;
-		button4_slope = 0;
-		
-		button2_old = button2_new;              // aktuelle Tastenwerte speichern
-		button3_old = button3_new;              //    in Variable fuer alte Werte
-		button4_old=button4_new;	
-
-	button1_slope = 0;
-	button1_old=button1_new;
-	lcd_clearDisplay();
-}
-
+//Einlesefunktion für DHT-Sensor===================================================================================
 int8_t readDHT(void)		//Sensordaten-Auslese-Funktion
 {
 	
@@ -661,7 +611,7 @@ int8_t readDHT(void)		//Sensordaten-Auslese-Funktion
 		
 	//MC kontakt mit DHT
 	DHT_PORT &= ~(1<<DHT_INPUTPIN);	//low
-	_delay_ms(18);
+	_delay_ms(20);
 	
 	DHT_PORT |= (1<<DHT_INPUTPIN);	//high
 	DHT_DDR &= ~(1<<DHT_INPUTPIN);	//input
@@ -746,6 +696,81 @@ int8_t readDHT(void)		//Sensordaten-Auslese-Funktion
 	}
 	return -1;
 }
+//=================================================================================================================
+
+//Temperatur-Funktionen============================================================================================
+void temperatureMenu()
+{	button1_slope = 0;
+	button1_old=button1_new;
+	
+	lcd_gotoxy(0,0);
+	
+	lcd_clearDisplay();
+	
+	temperatureScreen();			//Temperatur-Anzeige
+	
+	while(!button1_slope&!button4_slope)
+	{
+		if (cycle1sActive)             // alle Sekunde:
+		{
+			cycle1sActive = 0;         //      Botschaft "1s" loeschen
+			refreshTime();			   //      Uhr weiterzaehlen
+			temperatureScreen();	   //	   Temperatur-Anzeige jede Sekunde aktualisieren
+			button1_slope = 0;
+			button1_old=button1_new;
+			
+			if(maxtemp<tempval)
+			{
+				maxtemp=tempval;
+			}
+		}
+
+		ReadTaster();
+
+		readDHT();		//Temp. Daten aus Funktion bekommen
+		
+		ReadTaster();
+		while (button4_slope==1)
+		{
+			tempmax();
+			if (cycle1sActive=1)
+			{
+				readDHT();
+				refreshTime();
+
+				if(maxtemp<tempval)
+				{
+					maxtemp=tempval;
+				}
+				
+				ReadTaster();
+				if(button1_slope==1)
+				{
+					button4_slope=0;
+					lcd_clearDisplay();
+					button1_slope=0;
+				}
+				
+			}
+		}
+	}
+	if(button1_slope==1)
+	{
+		lcd_clearDisplay();
+	}
+		
+		button2_slope = 0;
+		button3_slope = 0;
+		button4_slope = 0;
+		
+		button2_old = button2_new;              // aktuelle Tastenwerte speichern
+		button3_old = button3_new;              //    in Variable fuer alte Werte
+		button4_old=button4_new;
+		button1_slope = 0;
+		button1_old=button1_new;
+	
+	lcd_clearDisplay();
+}
 
 void temperatureScreen()
 {
@@ -763,33 +788,127 @@ void temperatureScreen()
 	lcd_putc(ASC_NULL + temperature%10);
 	lcd_putc(0b11011111);
 	lcd_putstr("C");
+	lcd_gotoxy(1,11);
+	lcd_putstr("max->");
+}
+
+void tempmax()
+{
+	lcd_gotoxy(0,0);
+	lcd_putstr("max.Temperatur:");
+
+	lcd_gotoxy(1,0);
+	lcd_putc(0x7F);
+	
+	
+	lcd_gotoxy(1,4);
+	
+	lcd_putc(ASC_NULL + maxtemp/10);		//max. Temperatur-Char ausgeben
+	lcd_putc(ASC_NULL +	maxtemp%10);
+	lcd_putstr("%");
+	lcd_gotoxy(1,10);
+	lcd_putstr("      ");
+	cycle1sActive=0;
+	
+	
+}
+//=================================================================================================================
+
+//Luftfeuchtigkeitsfunktionen======================================================================================
+void humidityMenu()
+{	button1_slope = 0;
+	button1_old=button1_new;
+	
+	lcd_gotoxy(0,0);
+	
+	lcd_clearDisplay();
+	
+	humidityScreen();		//Luftfeuchte-Anzeige
+	
+	while(!button1_slope&!button4_slope)
+	{
+		if (cycle1sActive)             // alle Sekunde:
+		{
+			cycle1sActive = 0;         //      Botschaft "1s" loeschen
+			refreshTime();			   //      Uhr weiterzaehlen
+			humidityScreen();		   //Luftfeuchte-Anzeige jede Sekunde aktualisieren
+		}
+		button1_slope = 0;
+		button1_old=button1_new;
+		
+		ReadTaster();
+
+		readDHT();		//Luftfeuchte-Daten von Funktion bekommen
+		
+		ReadTaster();
+		while (button4_slope==1)
+		{
+			humidmax();
+			if (cycle1sActive=1)
+			{
+				readDHT();
+				refreshTime();
+
+				if(maxhumid<humidval)
+				{
+					maxhumid=humidval;
+				}
+				
+				ReadTaster();
+				if(button1_slope==1)
+				{
+					button4_slope=0;
+					lcd_clearDisplay();
+					button1_slope=0;
+				}
+				
+			}
+		}
+	}
+	if(button1_slope==1)
+	{
+		lcd_clearDisplay();
+	}
+	button2_slope = 0;
+	button3_slope = 0;
+	button4_slope = 0;
+	
+	button2_old = button2_new;              // aktuelle Tastenwerte speichern
+	button3_old = button3_new;              //    in Variable fuer alte Werte
+	button4_old=button4_new;
+
+	button1_slope = 0;
+	button1_old=button1_new;
 }
 
 void humidityScreen()
 {
-	humidity= humidval;
-	if (cycle100msActive)
-	{
-		cycle100msActive=0;
-		if(maxhumid<humidval)
-		{
-			maxhumid=humidval;
-		}
-	}
+if(maxhumid<humidval)
+{
+	maxhumid=humidval;
+}
 	
 	lcd_gotoxy(0,0);
 	lcd_putstr("Luftfeuchte:");
 
 	lcd_gotoxy(1,0);
 	lcd_putc(0x7F);
+	lcd_gotoxy(1,11);
+	lcd_putstr("max->");
+	
 	
 	lcd_gotoxy(1,4);
 	
-	lcd_putc(ASC_NULL + humidity/10);		//Luftfeuchte-Char ausgeben
-	lcd_putc(ASC_NULL +	humidity%10);
+	lcd_putc(ASC_NULL + humidval/10);		//Luftfeuchte-Char ausgeben
+	lcd_putc(ASC_NULL +	humidval%10);
 	lcd_putstr("%");
 	
-while (button4_slope==1)
+
+	
+	button1_slope=0;
+	
+}
+void humidmax()
 {
 	lcd_gotoxy(0,0);
 	lcd_putstr("max.Luftfeuchte:");
@@ -797,31 +916,21 @@ while (button4_slope==1)
 	lcd_gotoxy(1,0);
 	lcd_putc(0x7F);
 	
+	
 	lcd_gotoxy(1,4);
 	
 	lcd_putc(ASC_NULL + maxhumid/10);		//Luftfeuchte-Char ausgeben
 	lcd_putc(ASC_NULL +	maxhumid%10);
 	lcd_putstr("%");
-	if (cycle100msActive)
-	{
-		cycle100msActive=0;
-		if(maxhumid<humidval)
-		{
-			maxhumid=humidval;
-		}
-	}
-	ReadTaster();
-	if(button1_slope==1)
-	{
-		button4_slope=0;
-		lcd_clearDisplay();
-	}
+	lcd_gotoxy(1,10);
+	lcd_putstr("      ");
+	cycle1sActive=0;
 	
-	button1_slope=0;
 	
 }
-}
+//=================================================================================================================
 
+//Windgeschwindigkeitsfunktionen===================================================================================
 void windMenu()
 {	button1_slope = 0;
 	button1_old=button1_new;
@@ -892,4 +1001,60 @@ void windScreen()
 	
 	lcd_putstr(" in Hz");
 }
+//=================================================================================================================
 
+// Generierungsfunktion CustomCharacter ========================================================
+void lcd_generateChar(unsigned char address, unsigned char *data )
+
+/* Diese Funktion schreibt einen CustomCharacter in den CGRAM des Displays. Dafuer wird die Grafik und Speicheradresse uebergeben.
+  In Form einer Schleife werden die 8 Pixelzeilen als Character in den CGRAM geschrieben.
+*/
+{
+	 unsigned char customchar[][8] = {{
+		0b01110,
+		0b01110,
+		0b00101,                                                                                            // Character Männchen 1
+		0b01110,
+		0b10100,
+		0b00111,
+		0b01101,
+		0b00000
+	},
+	{
+		0b01110,
+		0b01110,
+		0b00101,                                                                                            // Character Männchen 2
+		0b01110,
+		0b10100,
+		0b00111,
+		0b01001,
+		0b00000
+	},
+	{
+		0b01110,
+		0b01110,
+		0b00100,                                                                                            // Character Männchen 3
+		0b11111,
+		0b00100,
+		0b01110,
+		0b01001,
+		0b00000
+	},
+	{
+		0b01110,
+		0b01110,
+		0b00100,                                                                                            // Character Männchen 4
+		0b11111,
+		0b00100,
+		0b01110,
+		0b10001,
+		0b00000
+	}};
+                lcd_cmd (LCD_SET_CGADR | (address<<3) );                      // Startposition des Zeichens einstellen
+                for (int cntrGenerateChar=0; cntrGenerateChar<NUMBER_PIXEL_ROWS; cntrGenerateChar++ )      // Bitmuster uebertragen
+                {
+                               lcd_putc( data[cntrGenerateChar] );                      // Uebertragung des Bitmusters Reihe fuer Reihe
+                               _delay_us (DLY_CMD_LONG);                                                  // Wartezeit zur internen Verarbeitung
+                }
+                lcd_cmd(LCD_SET_DDADR);                                                                                      // DDRAM auf 0 setzen
+}
